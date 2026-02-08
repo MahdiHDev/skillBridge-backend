@@ -5,86 +5,226 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+    provider = "prisma-client"
+    output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+    provider = "postgresql"
 }
 
 // Enums 
 
 enum UserRole {
-  STUDENT
-  TUTOR
-  ADMIN
+    STUDENT
+    TUTOR
+    ADMIN
 }
 
 enum UserStatus {
-  ACTIVE
-  BANNED
+    ACTIVE
+    BANNED
+}
+
+enum TutorLevel {
+    BEGINNER
+    INTERMEDIATE
+    ADVANCED
+}
+
+enum DayOfWeek {
+    MON
+    TUE
+    WED
+    THU
+    FRI
+    SAT
+    SUN
+}
+
+enum BookingStatus {
+    PENDING
+    CONFIRMED
+    COMPLETED
+    CANCELLED
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+    id            String    @id
+    name          String
+    email         String
+    emailVerified Boolean   @default(false)
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    sessions      Session[]
+    accounts      Account[]
 
-  @@unique([email])
-  @@map("user")
+    // Relations
+    tutorProfile TutorProfile?
+    bookings     Booking[]     @relation("StudentBookings")
+    reviews      Review[]
+    adminLogs    AdminLog[]
+
+    @@unique([email])
+    @@map("user")
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id        String   @id
+    expiresAt DateTime
+    token     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
+    @@unique([token])
+    @@index([userId])
+    @@map("session")
 }
 
 model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
 
-  @@index([userId])
-  @@map("account")
+    @@index([userId])
+    @@map("account")
 }
 
 model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-  @@index([identifier])
-  @@map("verification")
+    @@index([identifier])
+    @@map("verification")
+}
+
+model TutorProfile {
+    id            String  @id @default(uuid())
+    userId        String  @unique
+    bio           String?
+    totalReviews  Int     @default(0)
+    averageRating Float   @default(0)
+    isVerified    Boolean @default(false)
+
+    // Relations 
+    user            User               @relation(fields: [userId], references: [id])
+    tutorCategories TutorCategory[]
+    availability    AvailabilitySlot[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    reviews   Review[]
+}
+
+model Subject {
+    id   String @id @default(uuid())
+    name String
+    slug String @unique
+
+    //relations
+    tutorCategories TutorCategory[]
+
+    createdAt DateTime @default(now())
+}
+
+// Many to many resolve table
+model TutorCategory {
+    id              String     @id @default(uuid())
+    tutorProfileId  String
+    categoryId      String
+    hourlyRate      Float
+    experienceYears Int
+    level           TutorLevel
+    description     String?
+    isPrimary       Boolean    @default(false)
+
+    // Relations
+    tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
+    subject      Subject      @relation(fields: [categoryId], references: [id])
+
+    createdAt DateTime  @default(now())
+    bookings  Booking[]
+
+    @@unique([tutorProfileId, categoryId])
+}
+
+model AvailabilitySlot {
+    id             String    @id @default(uuid())
+    tutorProfileId String
+    dayOfWeek      DayOfWeek
+    startTime      DateTime
+    endTime        DateTime
+    isActive       Boolean   @default(true)
+
+    // Relation
+    tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
+
+    createdAt DateTime @default(now())
+}
+
+model Booking {
+    id              String        @id @default(uuid())
+    studentId       String
+    tutorCategoryId String
+    sessionDate     DateTime
+    startTime       DateTime
+    endTime         DateTime
+    price           Float
+    status          BookingStatus @default(PENDING)
+
+    // Relations 
+    student       User          @relation("StudentBookings", fields: [studentId], references: [id])
+    tutorCategory TutorCategory @relation(fields: [tutorCategoryId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    review    Review?
+}
+
+model Review {
+    id             String  @id @default(uuid())
+    bookingId      String  @unique
+    studentId      String
+    tutorProfileId String
+    rating         Int
+    comment        String?
+
+    // Relations
+    booking      Booking      @relation(fields: [bookingId], references: [id])
+    student      User         @relation(fields: [studentId], references: [id])
+    tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
+
+    createdAt DateTime @default(now())
+}
+
+model AdminLog {
+    id       String  @id @default(uuid())
+    adminId  String
+    action   String
+    targetId String?
+
+    // relations
+    admin User @relation(fields: [adminId], references: [id])
+
+    createdAt DateTime @default(now())
 }
