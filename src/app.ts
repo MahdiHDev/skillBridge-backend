@@ -2,6 +2,7 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express, { Application } from "express";
 import { auth } from "./lib/auth";
+import errorHandler from "./middleware/globalErrorHandler";
 import routes from "./routes";
 
 const app: Application = express();
@@ -22,5 +23,7 @@ app.use("/api/v1", routes);
 app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
+
+app.use(errorHandler);
 
 export default app;

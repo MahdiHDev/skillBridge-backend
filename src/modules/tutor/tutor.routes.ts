@@ -10,10 +10,23 @@ tutorRoutes.get(
     auth(UserRole.ADMIN),
     TutorController.getAllTutors,
 );
+
+tutorRoutes.get(
+    "/getMyProfile",
+    auth(UserRole.TUTOR),
+    TutorController.getTutorProfileByUserId,
+);
+
 tutorRoutes.post(
     "/create",
     auth(UserRole.ADMIN, UserRole.STUDENT),
     TutorController.createTutorProfile,
+);
+
+tutorRoutes.patch(
+    "/approve",
+    auth(UserRole.ADMIN),
+    TutorController.approveTutorProfile,
 );
 
 export default tutorRoutes;

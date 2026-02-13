@@ -49,6 +49,12 @@ enum BookingStatus {
     CANCELLED
 }
 
+enum ProfileStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
 model User {
     id            String    @id
     name          String
@@ -120,12 +126,13 @@ model Verification {
 }
 
 model TutorProfile {
-    id            String  @id @default(uuid())
-    userId        String  @unique
+    id            String        @id @default(uuid())
+    userId        String        @unique
     bio           String?
-    totalReviews  Int     @default(0)
-    averageRating Float   @default(0)
-    isVerified    Boolean @default(false)
+    totalReviews  Int           @default(0)
+    averageRating Float         @default(0)
+    status        ProfileStatus @default(PENDING)
+    isVerified    Boolean       @default(false)
 
     // Relations 
     user            User               @relation(fields: [userId], references: [id])
