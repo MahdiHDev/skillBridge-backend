@@ -13,7 +13,7 @@ tutorRoutes.get(
 
 tutorRoutes.get(
     "/getMyProfile",
-    auth(UserRole.TUTOR),
+    auth(UserRole.TUTOR, UserRole.ADMIN),
     TutorController.getTutorProfileByUserId,
 );
 

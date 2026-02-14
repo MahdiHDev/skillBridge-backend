@@ -1,5 +1,17 @@
 import { ProfileStatus, TutorLevel } from "../../../generated/prisma/client";
+import { TutorProfileWhereInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
+
+type getAllTutorsOptions = {
+    search: string | undefined;
+    isVerified: boolean | undefined;
+    status: ProfileStatus | undefined;
+    page: number;
+    limit: number;
+    skip: number;
+    sortBy: string;
+    sortOrder: string;
+};
 
 const createTutorProfile = async (
     data: { bio?: string },
@@ -23,6 +35,9 @@ const createTutorProfile = async (
                 userId,
                 status: "PENDING",
             },
+            include: {
+                user: true,
+            },
         });
 
         // 2. handle the subject creation
@@ -39,7 +54,7 @@ const createTutorProfile = async (
         const TutorCategory = await tx.tutorCategory.create({
             data: {
                 tutorProfileId: profile.id,
-                categoryId: subject.id,
+                subjectId: subject.id,
                 hourlyRate: extra.hourlyRate,
                 experienceYears: extra.experienceYears,
                 level: extra.level,
@@ -51,16 +66,93 @@ const createTutorProfile = async (
     });
 };
 
-const getAllTutors = async () => {
-    const tutors = (
-        await prisma.tutorProfile.findMany({
-            include: {
-                user: true,
-                tutorCategories: true,
+const getAllTutors = async ({
+    search,
+    isVerified,
+    status,
+    page,
+    limit,
+    skip,
+    sortBy,
+    sortOrder,
+}: getAllTutorsOptions) => {
+    const andConditions: TutorProfileWhereInput[] = [];
+
+    if (search) {
+        andConditions.push({
+            OR: [
+                {
+                    bio: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    user: {
+                        name: {
+                            contains: search,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+                {
+                    user: {
+                        email: {
+                            contains: search,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            ],
+        });
+    }
+
+    if (typeof isVerified === "boolean") {
+        andConditions.push({
+            isVerified,
+        });
+    }
+
+    if (status) {
+        andConditions.push({
+            status,
+        });
+    }
+
+    const tutors = await prisma.tutorProfile.findMany({
+        take: limit,
+        skip,
+        where: {
+            AND: andConditions,
+        },
+        orderBy: {
+            [sortBy]: sortOrder,
+        },
+        include: {
+            user: true,
+            tutorCategories: {
+                include: {
+                    subject: true,
+                },
             },
-        })
-    ).filter((tutor) => tutor.isVerified);
-    return tutors;
+        },
+    });
+
+    const total = await prisma.tutorProfile.count({
+        where: {
+            AND: andConditions,
+        },
+    });
+
+    return {
+        data: tutors,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
 };
 
 const approveTutorProfile = async (

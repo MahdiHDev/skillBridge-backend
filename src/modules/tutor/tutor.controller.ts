@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from "express";
+import { ProfileStatus } from "../../../generated/prisma/enums";
+import paginationSortingHelper from "../../helpers/paginationSortingHelper";
 import { transporter } from "../../lib/mailer";
 import { TutorService } from "./tutor.service";
 
@@ -51,7 +53,33 @@ const createTutorProfile = async (
 
 const getAllTutors = async (req: Request, res: Response) => {
     try {
-        const result = await TutorService.getAllTutors();
+        const { search } = req.query;
+        const searchString = typeof search === "string" ? search : undefined;
+
+        // true of false
+        const isVerified = req.query.isVerified
+            ? req.query.isVerified === "true"
+                ? true
+                : req.query.isVerified === "false"
+                  ? false
+                  : undefined
+            : undefined;
+
+        const status = req.query.status as ProfileStatus | undefined;
+
+        const { page, limit, skip, sortBy, sortOrder } =
+            paginationSortingHelper(req.query);
+
+        const result = await TutorService.getAllTutors({
+            search: searchString,
+            status,
+            isVerified,
+            limit,
+            page,
+            skip,
+            sortBy,
+            sortOrder,
+        });
         return res.status(200).json({
             success: true,
             message: "All tutors retrieved successfully",
@@ -77,6 +105,29 @@ const getTutorProfileByUserId = async (req: Request, res: Response) => {
 
     try {
         const profile = await TutorService.getTutorProfileByUserId(user.id);
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: "Tutor profile not found.",
+            });
+        }
+
+        if (profile.status === "PENDING" && !profile.isVerified) {
+            return res.status(400).json({
+                success: false,
+                message: "Your tutor profile is pending verification.",
+            });
+        }
+
+        if (profile.status === "REJECTED") {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Your tutor profile application has been rejected. Please review your profile and reapply.",
+            });
+        }
+
         return res.status(200).json({
             success: true,
             message: "Tutor profile retrieved successfully",
