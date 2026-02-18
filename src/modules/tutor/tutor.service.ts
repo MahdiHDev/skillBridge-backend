@@ -1,82 +1,189 @@
-import { ProfileStatus, TutorLevel } from "../../../generated/prisma/client";
+import {
+    ProfileStatus,
+    TutorLevel,
+    UserRole,
+} from "../../../generated/prisma/client";
 import { TutorProfileWhereInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
 
 type getAllTutorsOptions = {
     search: string | undefined;
+    subjectSlug: string | undefined;
+    minPrice: number | undefined;
+    maxPrice: number | undefined;
+    minRating: number | undefined;
+
+    status: ProfileStatus;
     isVerified: boolean | undefined;
-    status: ProfileStatus | undefined;
+
+    role?: UserRole;
+
     page: number;
     limit: number;
     skip: number;
     sortBy: string;
-    sortOrder: string;
+    sortOrder: "asc" | "desc";
 };
 
-const createTutorProfile = async (
-    data: { bio?: string },
+const getTeachingSession = async (userId: string) => {
+    const tutorid = await prisma.tutorProfile.findUnique({
+        where: {
+            userId,
+        },
+    });
+
+    if (!tutorid) {
+        throw new Error("Tutor profile not found for the user");
+    }
+
+    const result = await prisma.tutorCategory.findMany({
+        where: {
+            tutorProfileId: tutorid?.id,
+        },
+        include: {
+            subject: true,
+        },
+    });
+
+    return result;
+};
+
+const createTutorProfile = async (data: { bio?: string }, userId: string) => {
+    // return await prisma.$transaction(async (tx) => {
+    const profile = await prisma.tutorProfile.create({
+        data: {
+            ...data,
+            userId,
+            status: "PENDING",
+        },
+        include: {
+            user: true,
+        },
+    });
+
+    // 2. handle the subject creation
+    // const subject = await tx.subject.upsert({
+    //     where: { slug },
+    //     update: {},
+    //     create: {
+    //         name: extra.subjectName,
+    //         slug,
+    //     },
+    // });
+
+    // 3. Create TutorCategory
+    // const TutorCategory = await tx.tutorCategory.create({
+    //     data: {
+    //         tutorProfileId: profile.id,
+    //         subjectId: subject.id,
+    //         hourlyRate: extra.hourlyRate,
+    //         experienceYears: extra.experienceYears,
+    //         level: extra.level,
+    //         description: extra.bio || "",
+    //     },
+    // });
+
+    return profile;
+    // });
+};
+
+const createTeachingSession = async (
     userId: string,
-    extra: {
+    data: {
         subjectName: string;
         hourlyRate: number;
         experienceYears: number;
         level: TutorLevel;
         bio?: string;
+        isPrimary?: boolean;
     },
 ) => {
-    const slug = extra.subjectName.toLowerCase().trim().replace(/\s+/g, "-");
+    const slug = data.subjectName.toLowerCase().trim().replace(/\s+/g, "-");
 
     return await prisma.$transaction(async (tx) => {
-        const profile = await tx.tutorProfile.upsert({
-            where: { userId },
-            update: {},
-            create: {
-                ...data,
-                userId,
-                status: "PENDING",
-            },
-            include: {
-                user: true,
-            },
-        });
-
-        // 2. handle the subject creation
+        // 1. Create Subject
         const subject = await tx.subject.upsert({
             where: { slug },
             update: {},
             create: {
-                name: extra.subjectName,
+                name: data.subjectName,
                 slug,
             },
         });
 
-        // 3. Create TutorCategory
-        const TutorCategory = await tx.tutorCategory.create({
-            data: {
-                tutorProfileId: profile.id,
-                subjectId: subject.id,
-                hourlyRate: extra.hourlyRate,
-                experienceYears: extra.experienceYears,
-                level: extra.level,
-                description: extra.bio || "",
+        const getTutorProfile = await tx.tutorProfile.findUnique({
+            where: {
+                userId,
             },
         });
 
-        return { profile, TutorCategory };
+        if (!getTutorProfile) {
+            throw new Error("Tutor profile not found for the user");
+        }
+
+        // 2. Create TutorCategory
+        const TutorCategory = await tx.tutorCategory.create({
+            data: {
+                tutorProfileId: getTutorProfile.id,
+                subjectId: subject.id,
+                hourlyRate: data.hourlyRate,
+                experienceYears: data.experienceYears,
+                level: data.level,
+                description: data.bio || "",
+                isPrimary: data.isPrimary || false,
+            },
+            include: {
+                subject: true,
+                tutorProfile: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
+        });
+
+        return TutorCategory;
     });
 };
 
 const getAllTutors = async ({
     search,
-    isVerified,
-    status,
+    subjectSlug,
+    minPrice,
+    maxPrice,
+    minRating,
     page,
     limit,
     skip,
     sortBy,
     sortOrder,
+    status,
+    role,
+    isVerified,
 }: getAllTutorsOptions) => {
     const andConditions: TutorProfileWhereInput[] = [];
+
+    console.log(subjectSlug);
+
+    if (role === "ADMIN") {
+        if (status) {
+            andConditions.push({
+                status,
+            });
+        }
+
+        if (typeof isVerified === "boolean") {
+            andConditions.push({
+                isVerified,
+            });
+        }
+    } else {
+        // publc or students only see approved and verified tutors
+        andConditions.push({
+            status: "APPROVED",
+            isVerified: true,
+        });
+    }
 
     if (search) {
         andConditions.push({
@@ -107,17 +214,52 @@ const getAllTutors = async ({
         });
     }
 
-    if (typeof isVerified === "boolean") {
+    if (subjectSlug) {
         andConditions.push({
-            isVerified,
+            tutorCategories: {
+                some: {
+                    subject: {
+                        slug: subjectSlug,
+                    },
+                },
+            },
         });
     }
 
-    if (status) {
+    // price filter
+    if (minPrice || maxPrice) {
         andConditions.push({
-            status,
+            tutorCategories: {
+                some: {
+                    hourlyRate: {
+                        gte: minPrice ?? 0,
+                        lte: maxPrice ?? 999999,
+                    },
+                },
+            },
         });
     }
+
+    // Rating filter
+    if (minRating) {
+        andConditions.push({
+            averageRating: {
+                gte: minRating,
+            },
+        });
+    }
+
+    // if (typeof isVerified === "boolean") {
+    //     andConditions.push({
+    //         isVerified,
+    //     });
+    // }
+
+    // if (status) {
+    //     andConditions.push({
+    //         status,
+    //     });
+    // }
 
     const tutors = await prisma.tutorProfile.findMany({
         take: limit,
@@ -215,9 +357,40 @@ const getTutorProfileByUserId = async (userId: string) => {
     return profile;
 };
 
+const getTutorProfileById = async (id: string) => {
+    return prisma.tutorProfile.findUnique({
+        where: { id },
+
+        include: {
+            tutorCategories: {
+                include: {
+                    subject: true,
+                },
+            },
+
+            reviews: {
+                include: {
+                    student: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            },
+        },
+    });
+};
+
 export const TutorService = {
-    createTutorProfile,
     getAllTutors,
-    approveTutorProfile,
     getTutorProfileByUserId,
+    getTutorProfileById,
+    getTeachingSession,
+    createTutorProfile,
+    createTeachingSession,
+    approveTutorProfile,
 };

@@ -5,8 +5,10 @@ import { TutorController } from "./tutor.controller";
 
 const tutorRoutes: ExpressRouter = Router();
 
+tutorRoutes.get("/getAllTutors", TutorController.getAllTutors);
+
 tutorRoutes.get(
-    "/getAllTutors",
+    "/getAllTutors/admin",
     auth(UserRole.ADMIN),
     TutorController.getAllTutors,
 );
@@ -17,10 +19,24 @@ tutorRoutes.get(
     TutorController.getTutorProfileByUserId,
 );
 
+tutorRoutes.get("/:tutorProfileId", TutorController.getTutorProfileById);
+
+tutorRoutes.get(
+    "/getTeachingSession",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    TutorController.getTeachingSession,
+);
+
 tutorRoutes.post(
     "/create",
-    auth(UserRole.ADMIN, UserRole.STUDENT),
+    auth(UserRole.ADMIN, UserRole.STUDENT, UserRole.TUTOR),
     TutorController.createTutorProfile,
+);
+
+tutorRoutes.post(
+    "/createTeachingSession",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    TutorController.createTeachingSession,
 );
 
 tutorRoutes.patch(

@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { ProfileStatus } from "../../../generated/prisma/enums";
+import { ProfileStatus, UserRole } from "../../../generated/prisma/enums";
 import paginationSortingHelper from "../../helpers/paginationSortingHelper";
 import { transporter } from "../../lib/mailer";
 import { TutorService } from "./tutor.service";
@@ -21,12 +21,12 @@ const createTutorProfile = async (
         const result = await TutorService.createTutorProfile(
             { bio: req.body.bio },
             user.id,
-            {
-                subjectName: req.body.subjectName,
-                hourlyRate: req.body.hourlyRate,
-                experienceYears: req.body.experienceYears,
-                level: req.body.level,
-            },
+            // {
+            //     subjectName: req.body.subjectName,
+            //     hourlyRate: req.body.hourlyRate,
+            //     experienceYears: req.body.experienceYears,
+            //     level: req.body.level,
+            // },
         );
 
         return res.status(200).json({
@@ -36,49 +36,94 @@ const createTutorProfile = async (
             data: result,
         });
     } catch (error: any) {
-        // handle specific prisma error
-        // if (error.code === "P2002") {
-        //     return res
-        //         .status(400)
-        //         .json({ error: "You have already created a tutor profile" });
-        // }
-        // res.status(500).json({
-        //     success: false,
-        //     message: "Failed to create post",
-        // });
-        // console.error(error);
+        next(error);
+    }
+};
+
+const createTeachingSession = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const {
+            subjectName,
+            hourlyRate,
+            experienceYears,
+            level,
+            bio,
+            isPrimary,
+        } = req.body;
+
+        const user = req.user;
+        if (!user) {
+            return res.status(400).json({
+                error: "Unauthorized",
+            });
+        }
+
+        const result = await TutorService.createTeachingSession(user.id, {
+            subjectName,
+            hourlyRate,
+            experienceYears,
+            level,
+            bio,
+            isPrimary,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Course created successfully",
+            data: result,
+        });
+    } catch (error) {
         next(error);
     }
 };
 
 const getAllTutors = async (req: Request, res: Response) => {
     try {
-        const { search } = req.query;
+        const { search, subject, minPrice, maxPrice, minRating } = req.query;
+
         const searchString = typeof search === "string" ? search : undefined;
 
-        // true of false
-        const isVerified = req.query.isVerified
-            ? req.query.isVerified === "true"
+        const status = (req.query.status as ProfileStatus) || undefined;
+
+        const isVerified =
+            req.query.isVerified === "true"
                 ? true
                 : req.query.isVerified === "false"
                   ? false
-                  : undefined
-            : undefined;
+                  : undefined;
 
-        const status = req.query.status as ProfileStatus | undefined;
+        const role = req.user?.role as UserRole;
+
+        const subjectSlug = typeof subject === "string" ? subject : undefined;
+
+        const minPriceNumber = minPrice ? Number(minPrice) : undefined;
+
+        const maxPriceNumber = maxPrice ? Number(maxPrice) : undefined;
+
+        const minRatingNumber = minRating ? Number(minRating) : undefined;
 
         const { page, limit, skip, sortBy, sortOrder } =
             paginationSortingHelper(req.query);
 
         const result = await TutorService.getAllTutors({
             search: searchString,
-            status,
-            isVerified,
+            subjectSlug,
+            minPrice: minPriceNumber,
+            maxPrice: maxPriceNumber,
+            minRating: minRatingNumber,
             limit,
             page,
             skip,
             sortBy,
-            sortOrder,
+            sortOrder: sortOrder as "asc" | "desc",
+
+            status,
+            role,
+            isVerified,
         });
         return res.status(200).json({
             success: true,
@@ -139,6 +184,60 @@ const getTutorProfileByUserId = async (req: Request, res: Response) => {
             message: "Failed to retrieve tutor profile",
         });
         console.error(error);
+    }
+};
+
+const getTutorProfileById = async (req: Request, res: Response) => {
+    const { tutorProfileId } = req.params;
+
+    try {
+        const profile = await TutorService.getTutorProfileById(
+            tutorProfileId as string,
+        );
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: "Tutor not found",
+            });
+        }
+
+        // Only approved tutors visible publicly
+        if (profile.status !== "APPROVED") {
+            return res.status(403).json({
+                success: false,
+                message: "Tutor profile is not publicly available",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Tutor profile retrieved successfully",
+            data: profile,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve tutor profile",
+        });
+    }
+};
+
+const getTeachingSession = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const userId = req.user?.id;
+        const result = await TutorService.getTeachingSession(userId!);
+        return res.status(200).json({
+            success: true,
+            message: "Teaching session retrieved successfully",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
     }
 };
 
@@ -224,7 +323,10 @@ const approveTutorProfile = async (req: Request, res: Response) => {
 
 export const TutorController = {
     createTutorProfile,
+    createTeachingSession,
     getAllTutors,
+    getTutorProfileById,
     approveTutorProfile,
     getTutorProfileByUserId,
+    getTeachingSession,
 };

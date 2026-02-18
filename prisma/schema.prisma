@@ -161,8 +161,8 @@ model TutorCategory {
     isPrimary       Boolean    @default(false)
 
     // Relations
-    tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])
-    subject      Subject      @relation(fields: [subjectId], references: [id])
+    tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+    subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
     createdAt DateTime  @default(now())
     bookings  Booking[]
@@ -171,12 +171,17 @@ model TutorCategory {
 }
 
 model AvailabilitySlot {
-    id             String    @id @default(uuid())
+    id             String @id @default(uuid())
     tutorProfileId String
-    dayOfWeek      DayOfWeek
-    startTime      DateTime
-    endTime        DateTime
-    isActive       Boolean   @default(true)
+
+    dayOfWeek DayOfWeek
+    startTime DateTime
+    endTime   DateTime
+
+    startDate DateTime
+    endDate   DateTime
+
+    isActive Boolean @default(true)
 
     // Relation
     tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id])

@@ -6,7 +6,7 @@ const routes: ExpressRouter = Router();
 
 const moduleRoutes = [
     {
-        path: "/tutor-profile",
+        path: "/tutor",
         route: tutorRoutes,
     },
 ];
