@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { Prisma } from "../../generated/prisma/client";
+import { Prisma, TutorLevel } from "../../generated/prisma/client";
 
 function errorHandler(
     err: any,
@@ -10,6 +10,7 @@ function errorHandler(
     let statusCode = 500;
     let errorMessage = "Internal Server error";
     let errorDetails = err;
+    const validLevels = Object.values(TutorLevel);
 
     // prismaClientValidationError
     if (err instanceof Prisma.PrismaClientValidationError) {
@@ -41,6 +42,9 @@ function errorHandler(
             statusCode = 400;
             errorMessage = "Can't reach database server";
         }
+    } else if (err instanceof Error) {
+        statusCode = (err as any).statusCode || 500;
+        errorMessage = err.message;
     }
 
     res.status(statusCode);

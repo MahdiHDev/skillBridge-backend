@@ -4,83 +4,6 @@ import paginationSortingHelper from "../../helpers/paginationSortingHelper";
 import { transporter } from "../../lib/mailer";
 import { TutorService } from "./tutor.service";
 
-const createTutorProfile = async (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-) => {
-    const user = req.user;
-
-    try {
-        if (!user) {
-            return res.status(400).json({
-                error: "Unauthorized",
-            });
-        }
-
-        const result = await TutorService.createTutorProfile(
-            { bio: req.body.bio },
-            user.id,
-            // {
-            //     subjectName: req.body.subjectName,
-            //     hourlyRate: req.body.hourlyRate,
-            //     experienceYears: req.body.experienceYears,
-            //     level: req.body.level,
-            // },
-        );
-
-        return res.status(200).json({
-            success: true,
-            message:
-                "Tutor profile created successfully. You will get email once your profile is verified.",
-            data: result,
-        });
-    } catch (error: any) {
-        next(error);
-    }
-};
-
-const createTeachingSession = async (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-) => {
-    try {
-        const {
-            subjectName,
-            hourlyRate,
-            experienceYears,
-            level,
-            bio,
-            isPrimary,
-        } = req.body;
-
-        const user = req.user;
-        if (!user) {
-            return res.status(400).json({
-                error: "Unauthorized",
-            });
-        }
-
-        const result = await TutorService.createTeachingSession(user.id, {
-            subjectName,
-            hourlyRate,
-            experienceYears,
-            level,
-            bio,
-            isPrimary,
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Course created successfully",
-            data: result,
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
 const getAllTutors = async (req: Request, res: Response) => {
     try {
         const { search, subject, minPrice, maxPrice, minRating } = req.query;
@@ -241,6 +164,83 @@ const getTeachingSession = async (
     }
 };
 
+const createTutorProfile = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    const user = req.user;
+
+    try {
+        if (!user) {
+            return res.status(400).json({
+                error: "Unauthorized",
+            });
+        }
+
+        const result = await TutorService.createTutorProfile(
+            { bio: req.body.bio },
+            user.id,
+            // {
+            //     subjectName: req.body.subjectName,
+            //     hourlyRate: req.body.hourlyRate,
+            //     experienceYears: req.body.experienceYears,
+            //     level: req.body.level,
+            // },
+        );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "Tutor profile created successfully. You will get email once your profile is verified.",
+            data: result,
+        });
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+const createTeachingSession = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const {
+            subjectName,
+            hourlyRate,
+            experienceYears,
+            level,
+            bio,
+            isPrimary,
+        } = req.body;
+
+        const user = req.user;
+        if (!user) {
+            return res.status(400).json({
+                error: "Unauthorized",
+            });
+        }
+
+        const result = await TutorService.createTeachingSession(user.id, {
+            subjectName,
+            hourlyRate,
+            experienceYears,
+            level,
+            bio,
+            isPrimary,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Course created successfully",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const approveTutorProfile = async (req: Request, res: Response) => {
     const { tutorProfileId, status } = req.body;
     const profileStatus = status.toUpperCase();
@@ -321,6 +321,93 @@ const approveTutorProfile = async (req: Request, res: Response) => {
     }
 };
 
+const updateTutorProfile = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const { bio, tutorProfileId } = req.body;
+
+        const updatedProfile = await TutorService.updateTutorProfile(
+            tutorProfileId,
+            bio,
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Tutor profile updated successfully",
+            data: updatedProfile,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateTeachingSession = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    const { tutorSessionId } = req.params;
+    try {
+        const { hourlyRate, experienceYears, level, description, isPrimary } =
+            req.body;
+
+        if (!tutorSessionId) {
+            return res.status(400).json({
+                success: false,
+                message: "Tutor session ID is required",
+            });
+        }
+
+        const updatedSession = await TutorService.updateTeachingSession(
+            tutorSessionId as string,
+            {
+                hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
+                experienceYears: experienceYears
+                    ? Number(experienceYears)
+                    : undefined,
+                level,
+                description,
+                isPrimary,
+            },
+        );
+        res.status(200).json({
+            success: true,
+            message: "Teaching session updated successfully",
+            data: updatedSession,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteTeachingSession = async (req: Request, res: Response) => {
+    try {
+        const { tutorSessionId } = req.params;
+
+        if (!tutorSessionId) {
+            return res.status(400).json({
+                success: false,
+                message: "Tutor session ID is required",
+            });
+        }
+
+        await TutorService.deleteTeachingSession(tutorSessionId as string);
+
+        res.status(200).json({
+            success: true,
+            message: "Teaching session deleted successfully",
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete teaching session",
+        });
+    }
+};
+
 export const TutorController = {
     createTutorProfile,
     createTeachingSession,
@@ -329,4 +416,7 @@ export const TutorController = {
     approveTutorProfile,
     getTutorProfileByUserId,
     getTeachingSession,
+    updateTutorProfile,
+    updateTeachingSession,
+    deleteTeachingSession,
 };

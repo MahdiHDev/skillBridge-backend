@@ -19,13 +19,13 @@ tutorRoutes.get(
     TutorController.getTutorProfileByUserId,
 );
 
-tutorRoutes.get("/:tutorProfileId", TutorController.getTutorProfileById);
-
 tutorRoutes.get(
     "/getTeachingSession",
     auth(UserRole.TUTOR, UserRole.ADMIN),
     TutorController.getTeachingSession,
 );
+
+tutorRoutes.get("/:tutorProfileId", TutorController.getTutorProfileById);
 
 tutorRoutes.post(
     "/create",
@@ -43,6 +43,24 @@ tutorRoutes.patch(
     "/approve",
     auth(UserRole.ADMIN),
     TutorController.approveTutorProfile,
+);
+
+tutorRoutes.put(
+    "/updateTutorProfile",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    TutorController.updateTutorProfile,
+);
+
+tutorRoutes.put(
+    "/updateTeachingSession/:tutorSessionId",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    TutorController.updateTeachingSession,
+);
+
+tutorRoutes.delete(
+    "/deleteTeachingSession/:tutorSessionId",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    TutorController.deleteTeachingSession,
 );
 
 export default tutorRoutes;

@@ -3,6 +3,7 @@ import cors from "cors";
 import express, { Application } from "express";
 import { auth } from "./lib/auth";
 import errorHandler from "./middleware/globalErrorHandler";
+import { notFound } from "./middleware/notFound";
 import routes from "./routes";
 
 const app: Application = express();
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
 
+app.use(notFound);
 app.use(errorHandler);
 
 export default app;

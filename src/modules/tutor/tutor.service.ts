@@ -25,29 +25,7 @@ type getAllTutorsOptions = {
     sortOrder: "asc" | "desc";
 };
 
-const getTeachingSession = async (userId: string) => {
-    const tutorid = await prisma.tutorProfile.findUnique({
-        where: {
-            userId,
-        },
-    });
-
-    if (!tutorid) {
-        throw new Error("Tutor profile not found for the user");
-    }
-
-    const result = await prisma.tutorCategory.findMany({
-        where: {
-            tutorProfileId: tutorid?.id,
-        },
-        include: {
-            subject: true,
-        },
-    });
-
-    return result;
-};
-
+// create tutor profile
 const createTutorProfile = async (data: { bio?: string }, userId: string) => {
     // return await prisma.$transaction(async (tx) => {
     const profile = await prisma.tutorProfile.create({
@@ -87,6 +65,7 @@ const createTutorProfile = async (data: { bio?: string }, userId: string) => {
     // });
 };
 
+// create teaching session
 const createTeachingSession = async (
     userId: string,
     data: {
@@ -98,6 +77,17 @@ const createTeachingSession = async (
         isPrimary?: boolean;
     },
 ) => {
+    const validLevels = Object.values(TutorLevel);
+
+    // ✅ Enum validation
+    if (!validLevels.includes(data.level)) {
+        const error = new Error(
+            `Level must be one of: ${validLevels.join(", ")}`,
+        );
+
+        throw error;
+    }
+
     const slug = data.subjectName.toLowerCase().trim().replace(/\s+/g, "-");
 
     return await prisma.$transaction(async (tx) => {
@@ -146,6 +136,29 @@ const createTeachingSession = async (
     });
 };
 
+const getTeachingSession = async (userId: string) => {
+    const tutorid = await prisma.tutorProfile.findUnique({
+        where: {
+            userId,
+        },
+    });
+
+    if (!tutorid) {
+        throw new Error("Tutor profile not found for the user");
+    }
+
+    const result = await prisma.tutorCategory.findMany({
+        where: {
+            tutorProfileId: tutorid?.id,
+        },
+        include: {
+            subject: true,
+        },
+    });
+
+    return result;
+};
+
 const getAllTutors = async ({
     search,
     subjectSlug,
@@ -162,8 +175,6 @@ const getAllTutors = async ({
     isVerified,
 }: getAllTutorsOptions) => {
     const andConditions: TutorProfileWhereInput[] = [];
-
-    console.log(subjectSlug);
 
     if (role === "ADMIN") {
         if (status) {
@@ -351,6 +362,7 @@ const getTutorProfileByUserId = async (userId: string) => {
                     subject: true,
                 },
             },
+            user: true,
         },
     });
 
@@ -385,12 +397,68 @@ const getTutorProfileById = async (id: string) => {
     });
 };
 
+const updateTutorProfile = async (tutorProfileId: string, bio?: string) => {
+    const updatedProfile = await prisma.tutorProfile.update({
+        where: { id: tutorProfileId },
+        data: {
+            ...(bio !== undefined && { bio }),
+        },
+    });
+
+    return updatedProfile;
+};
+
+const updateTeachingSession = async (
+    tutorSessionId: string,
+    data: {
+        hourlyRate?: number | undefined;
+        experienceYears?: number | undefined;
+        level?: TutorLevel;
+        description?: string;
+        isPrimary?: boolean;
+    },
+) => {
+    return await prisma.tutorCategory.update({
+        where: { id: tutorSessionId },
+        data: {
+            ...(data.hourlyRate !== undefined && {
+                hourlyRate: data.hourlyRate,
+            }),
+            ...(data.experienceYears !== undefined && {
+                experienceYears: data.experienceYears,
+            }),
+            ...(data.level !== undefined && { level: data.level }),
+            ...(data.description !== undefined && {
+                description: data.description,
+            }),
+            ...(data.isPrimary !== undefined && { isPrimary: data.isPrimary }),
+        },
+        include: {
+            subject: true,
+            tutorProfile: {
+                include: {
+                    user: true,
+                },
+            },
+        },
+    });
+};
+
+const deleteTeachingSession = async (tutorSessionId: string) => {
+    return await prisma.tutorCategory.delete({
+        where: { id: tutorSessionId },
+    });
+};
+
 export const TutorService = {
+    createTutorProfile,
+    createTeachingSession,
+    approveTutorProfile,
     getAllTutors,
     getTutorProfileByUserId,
     getTutorProfileById,
     getTeachingSession,
-    createTutorProfile,
-    createTeachingSession,
-    approveTutorProfile,
+    updateTutorProfile,
+    updateTeachingSession,
+    deleteTeachingSession,
 };
