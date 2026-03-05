@@ -1,12 +1,38 @@
 import { Router, type Router as ExpressRouter } from "express";
+import auth, { UserRole } from "../../middleware/auth";
 import { bookingController } from "./booking.controller";
 
 const bookingRoutes: ExpressRouter = Router();
 
-bookingRoutes.post("/", bookingController.createBooking);
+bookingRoutes.post(
+    "/create",
+    auth(UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN),
+    bookingController.createBooking,
+);
 
-bookingRoutes.get("/create", (req, res) => {
-    res.send("Booking route");
-});
+bookingRoutes.get(
+    "/my-sessions",
+    auth(UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN),
+    bookingController.mySessions,
+);
+bookingRoutes.get("/upcoming", bookingController.upcomingSession);
+
+bookingRoutes.get(
+    "/teaching",
+    auth(UserRole.TUTOR, UserRole.ADMIN),
+    bookingController.teachingSession,
+);
+
+bookingRoutes.get(
+    "/getAllBooking",
+    auth(UserRole.ADMIN),
+    bookingController.getAllBooking,
+);
+
+bookingRoutes.patch(
+    "/:id/status",
+    auth(UserRole.ADMIN, UserRole.TUTOR),
+    bookingController.bookingStatus,
+);
 
 export default bookingRoutes;
