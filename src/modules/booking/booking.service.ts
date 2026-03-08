@@ -1,5 +1,36 @@
 import { BookingStatus } from "../../../generated/prisma/enums";
+import { BookingWhereInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
+
+type getAllBookingOptions = {
+    subjectSlug: string | undefined;
+    minPrice: number | undefined;
+    maxPrice: number | undefined;
+    startDate?: string;
+    endDate?: string;
+    studentId: string | undefined;
+    tutorId: string | undefined;
+
+    status: BookingStatus | undefined;
+
+    page: number;
+    limit: number;
+    skip: number;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+};
+
+type getAllTeachingSessionOptions = {
+    status: BookingStatus | undefined;
+    startDate?: string;
+    endDate?: string;
+
+    page: number;
+    limit: number;
+    skip: number;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+};
 
 const createBooking = async (
     studentId: string,
@@ -162,7 +193,36 @@ const upCommingSession = async () => {
     });
 };
 
-const teachingSession = async (userId: string) => {
+const teachingSession = async (
+    userId: string,
+    {
+        status,
+        startDate,
+        endDate,
+        page,
+        limit,
+        skip,
+        sortBy,
+        sortOrder,
+    }: getAllTeachingSessionOptions,
+) => {
+    const andConditions: BookingWhereInput[] = [];
+
+    if (status) {
+        andConditions.push({
+            status,
+        });
+    }
+
+    if (startDate || endDate) {
+        andConditions.push({
+            sessionDate: {
+                ...(startDate && { gte: new Date(startDate) }),
+                ...(endDate && { lte: new Date(endDate) }),
+            },
+        });
+    }
+
     const tutorProfile = await prisma.tutorProfile.findUnique({
         where: { userId },
         select: { id: true },
@@ -172,11 +232,14 @@ const teachingSession = async (userId: string) => {
         throw new Error("Tutor profile not found");
     }
 
-    return prisma.booking.findMany({
+    const booking = await prisma.booking.findMany({
+        take: limit,
+        skip,
         where: {
             tutorCategory: {
                 tutorProfileId: tutorProfile.id,
             },
+            AND: andConditions,
         },
         include: {
             student: {
@@ -193,13 +256,134 @@ const teachingSession = async (userId: string) => {
             },
         },
         orderBy: {
-            sessionDate: "asc",
+            [sortBy]: sortOrder,
         },
     });
+
+    const total = await prisma.booking.count({
+        where: {
+            tutorCategory: {
+                tutorProfileId: tutorProfile.id,
+            },
+            AND: andConditions,
+        },
+    });
+
+    return {
+        data: booking,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
 };
 
-const getAllBooking = async () => {
-    return await prisma.booking.findMany();
+const getAllBooking = async ({
+    status,
+    studentId,
+    tutorId,
+    subjectSlug,
+    startDate,
+    endDate,
+    minPrice,
+    maxPrice,
+    page,
+    limit,
+    skip,
+    sortBy,
+    sortOrder,
+}: getAllBookingOptions) => {
+    const andConditions: BookingWhereInput[] = [];
+
+    if (status) {
+        andConditions.push({
+            status,
+        });
+    }
+
+    if (studentId) {
+        andConditions.push({
+            studentId,
+        });
+    }
+
+    if (tutorId) {
+        andConditions.push({
+            tutorCategory: {
+                tutorProfileId: tutorId,
+            },
+        });
+    }
+
+    if (subjectSlug) {
+        andConditions.push({
+            tutorCategory: {
+                subject: {
+                    slug: subjectSlug,
+                },
+            },
+        });
+    }
+
+    if (startDate || endDate) {
+        andConditions.push({
+            sessionDate: {
+                ...(startDate && { gte: new Date(startDate) }),
+                ...(endDate && { lte: new Date(endDate) }),
+            },
+        });
+    }
+
+    if (minPrice || maxPrice) {
+        andConditions.push({
+            price: {
+                gte: minPrice ?? 0,
+                lte: maxPrice ?? 999999,
+            },
+        });
+    }
+
+    const booking = await prisma.booking.findMany({
+        take: limit,
+        skip,
+        where: {
+            AND: andConditions,
+        },
+        orderBy: {
+            [sortBy]: sortOrder,
+        },
+        include: {
+            student: true,
+            tutorCategory: {
+                include: {
+                    subject: true,
+                    tutorProfile: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    const total = await prisma.booking.count({
+        where: {
+            AND: andConditions,
+        },
+    });
+
+    return {
+        data: booking,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
 };
 
 const bookingStatus = async (bookingId: string, status: BookingStatus) => {

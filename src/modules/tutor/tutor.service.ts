@@ -27,7 +27,6 @@ type getAllTutorsOptions = {
 
 // create tutor profile
 const createTutorProfile = async (data: { bio?: string }, userId: string) => {
-    // return await prisma.$transaction(async (tx) => {
     const profile = await prisma.tutorProfile.create({
         data: {
             ...data,
@@ -39,30 +38,7 @@ const createTutorProfile = async (data: { bio?: string }, userId: string) => {
         },
     });
 
-    // 2. handle the subject creation
-    // const subject = await tx.subject.upsert({
-    //     where: { slug },
-    //     update: {},
-    //     create: {
-    //         name: extra.subjectName,
-    //         slug,
-    //     },
-    // });
-
-    // 3. Create TutorCategory
-    // const TutorCategory = await tx.tutorCategory.create({
-    //     data: {
-    //         tutorProfileId: profile.id,
-    //         subjectId: subject.id,
-    //         hourlyRate: extra.hourlyRate,
-    //         experienceYears: extra.experienceYears,
-    //         level: extra.level,
-    //         description: extra.bio || "",
-    //     },
-    // });
-
     return profile;
-    // });
 };
 
 // create teaching session

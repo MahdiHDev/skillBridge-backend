@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from "express";
+import { BookingStatus } from "../../../generated/prisma/enums";
+import paginationSortingHelper from "../../helpers/paginationSortingHelper";
 import { BookingService } from "./booking.service";
 
 const createBooking = async (
@@ -86,7 +88,25 @@ const teachingSession = async (
     const userId = user?.id as string;
 
     try {
-        const result = await BookingService.teachingSession(userId);
+        const { status, startDate, endDate } = req.query;
+
+        const bookingStatus = status as BookingStatus | undefined;
+        const startDateQuery = startDate as string;
+        const endDateQuery = endDate as string;
+
+        const { page, limit, skip, sortBy, sortOrder } =
+            paginationSortingHelper(req.query);
+
+        const result = await BookingService.teachingSession(userId, {
+            status: bookingStatus,
+            startDate: startDateQuery,
+            endDate: endDateQuery,
+            page,
+            limit,
+            skip,
+            sortBy,
+            sortOrder: sortOrder as "asc" | "desc",
+        });
         res.status(200).json({
             success: true,
             message: "Teaching Sessions retrived successfully",
@@ -103,7 +123,49 @@ const getAllBooking = async (
     next: NextFunction,
 ) => {
     try {
-        const result = await BookingService.getAllBooking();
+        const {
+            status,
+            studentId,
+            tutorId,
+            subject,
+            startDate,
+            endDate,
+            minPrice,
+            maxPrice,
+        } = req.query;
+
+        const bookingStatus = status as BookingStatus | undefined;
+        const studentIdQuery = studentId as string | undefined;
+        const tutorIdQuery = tutorId as string | undefined;
+        const subjectQuery = subject as string | undefined;
+        const startDateQuery = startDate as string;
+
+        const endDateQuery = endDate as string;
+        const minPriceQuery = minPrice
+            ? parseFloat(minPrice as string)
+            : undefined;
+        const maxPriceQuery = maxPrice
+            ? parseFloat(maxPrice as string)
+            : undefined;
+
+        const { page, limit, skip, sortBy, sortOrder } =
+            paginationSortingHelper(req.query);
+
+        const result = await BookingService.getAllBooking({
+            status: bookingStatus,
+            studentId: studentIdQuery,
+            tutorId: tutorIdQuery,
+            subjectSlug: subjectQuery,
+            startDate: startDateQuery,
+            endDate: endDateQuery,
+            minPrice: minPriceQuery,
+            maxPrice: maxPriceQuery,
+            page,
+            limit,
+            skip,
+            sortBy,
+            sortOrder: sortOrder as "asc" | "desc",
+        });
 
         res.status(200).json({
             success: true,
