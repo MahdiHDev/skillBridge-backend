@@ -183,10 +183,13 @@ const bookingStatus = async (
     next: NextFunction,
 ) => {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, meetingLink } = req.body;
 
     try {
-        const result = await BookingService.bookingStatus(id as string, status);
+        const result = await BookingService.bookingStatus(id as string, {
+            status,
+            meetingLink,
+        });
 
         res.status(200).json({
             success: true,

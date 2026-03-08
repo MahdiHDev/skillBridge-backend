@@ -198,6 +198,7 @@ model Booking {
     endTime         DateTime
     price           Float
     status          BookingStatus @default(PENDING)
+    meetingLink     String?
 
     // Relations 
     student       User          @relation("StudentBookings", fields: [studentId], references: [id])

@@ -171,6 +171,29 @@ const createBooking = async (
 const mySessions = async (studentId: string) => {
     return await prisma.booking.findMany({
         where: { studentId },
+        include: {
+            tutorCategory: {
+                include: {
+                    subject: true,
+                    tutorProfile: {
+                        select: {
+                            id: true,
+                            userId: true,
+                            bio: true,
+                            totalReviews: true,
+                            averageRating: true,
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
     });
 };
 
@@ -187,6 +210,7 @@ const upCommingSession = async () => {
             tutorCategory: {
                 include: {
                     tutorProfile: true,
+                    subject: true,
                 },
             },
         },
@@ -386,18 +410,26 @@ const getAllBooking = async ({
     };
 };
 
-const bookingStatus = async (bookingId: string, status: BookingStatus) => {
+const bookingStatus = async (
+    bookingId: string,
+    data: { status: BookingStatus; meetingLink?: string },
+) => {
     const validStatus = Object.values(BookingStatus);
 
-    if (!validStatus.includes(status)) {
+    if (!validStatus.includes(data.status)) {
         throw new Error(
             `Invalid status. Status must be one of: ${validStatus.join(", ")}`,
         );
     }
 
+    const updateData: any = { status: data.status };
+    if (data.meetingLink !== undefined) {
+        updateData.meetingLink = data.meetingLink;
+    }
+
     return await prisma.booking.update({
         where: { id: bookingId },
-        data: { status },
+        data: updateData,
     });
 };
 
