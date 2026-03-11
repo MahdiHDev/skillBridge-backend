@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from "express";
 
 import auth, { UserRole } from "../../middleware/auth";
+import checkUserBanStatus from "../../middleware/checkBanStatus";
 import { availabilityController } from "./availability.controller";
 
 const availabilityRoutes: ExpressRouter = Router();
@@ -8,6 +9,7 @@ const availabilityRoutes: ExpressRouter = Router();
 availabilityRoutes.post(
     "/create",
     auth(UserRole.TUTOR, UserRole.ADMIN),
+    checkUserBanStatus,
     availabilityController.createAvailability,
 );
 

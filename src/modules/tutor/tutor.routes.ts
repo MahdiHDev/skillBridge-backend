@@ -1,6 +1,7 @@
 import type { Router as ExpressRouter } from "express";
 import { Router } from "express";
 import auth, { UserRole } from "../../middleware/auth";
+import checkUserBanStatus from "../../middleware/checkBanStatus";
 import { TutorController } from "./tutor.controller";
 
 const tutorRoutes: ExpressRouter = Router();
@@ -30,12 +31,14 @@ tutorRoutes.get("/:tutorProfileId", TutorController.getTutorProfileById);
 tutorRoutes.post(
     "/create",
     auth(UserRole.ADMIN, UserRole.STUDENT, UserRole.TUTOR),
+    checkUserBanStatus,
     TutorController.createTutorProfile,
 );
 
 tutorRoutes.post(
     "/createTeachingSession",
     auth(UserRole.TUTOR, UserRole.ADMIN),
+    checkUserBanStatus,
     TutorController.createTeachingSession,
 );
 
@@ -54,6 +57,7 @@ tutorRoutes.put(
 tutorRoutes.put(
     "/updateTeachingSession/:tutorSessionId",
     auth(UserRole.TUTOR, UserRole.ADMIN),
+    checkUserBanStatus,
     TutorController.updateTeachingSession,
 );
 

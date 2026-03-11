@@ -1,5 +1,6 @@
 import { Router, type Router as ExpressRouter } from "express";
 import auth, { UserRole } from "../../middleware/auth";
+import checkUserBanStatus from "../../middleware/checkBanStatus";
 import { bookingController } from "./booking.controller";
 
 const bookingRoutes: ExpressRouter = Router();
@@ -7,6 +8,7 @@ const bookingRoutes: ExpressRouter = Router();
 bookingRoutes.post(
     "/create",
     auth(UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN),
+    checkUserBanStatus,
     bookingController.createBooking,
 );
 
