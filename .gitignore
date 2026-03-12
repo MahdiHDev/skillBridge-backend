@@ -4,3 +4,7 @@ node_modules
 
 /generated/prisma
 resourses.txt
+.DS_Store
+.vercel
+.vercel
+.env*.local
