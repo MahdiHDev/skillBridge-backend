@@ -10,7 +10,7 @@ const app: Application = express();
 
 // Configure CORS to allow both production and Vercel preview deployments
 const allowedOrigins = [
-    process.env.APP_URL || "http://localhost:3000",
+    process.env.FRONTEND_URL || "http://localhost:3000",
     process.env.PROD_APP_URL, // Production frontend URL
 ].filter(Boolean); // Remove undefined values
 

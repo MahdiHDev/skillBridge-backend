@@ -42,9 +42,7 @@ export const auth = betterAuth({
         autoSignInAfterVerification: true,
         sendVerificationEmail: async ({ user, url, token }, request) => {
             try {
-                const verificationUrl =
-                    url ||
-                    `${process.env.APP_URL}/api/auth/verify-email?token=${token}`;
+                const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
                 const info = await transporter.sendMail({
                     from: '"SkillBridge" <prismablog@ph.com>',
                     to: user.email,
@@ -157,7 +155,7 @@ export const auth = betterAuth({
       </p>
 
       <p class="link">
-        ${url}
+        ${verificationUrl}
       </p>
 
       <p>

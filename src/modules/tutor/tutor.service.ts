@@ -350,6 +350,7 @@ const getTutorProfileById = async (id: string) => {
         where: { id },
 
         include: {
+            user: true,
             tutorCategories: {
                 include: {
                     subject: true,
