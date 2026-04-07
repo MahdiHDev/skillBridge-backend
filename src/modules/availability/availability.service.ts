@@ -139,6 +139,59 @@ const getAvailibilityByTutorId = async (tutorProfileId: string) => {
     return result;
 };
 
+const getAvailabilityWithBookings = async (tutorId: string, date: string) => {
+    const selectedDate = new Date(`${date}T00:00:00.000`);
+
+    if (isNaN(selectedDate.getTime())) {
+        throw new Error("Invalid date format");
+    }
+
+    const dayOfWeek = selectedDate
+        .toLocaleDateString("en-US", { weekday: "short" })
+        .toUpperCase();
+
+    // 1️⃣ availability
+    const slots = await prisma.availabilitySlot.findMany({
+        where: {
+            tutorProfileId: tutorId,
+            dayOfWeek: dayOfWeek as DayOfWeek,
+            isActive: true,
+            startDate: { lte: selectedDate },
+            endDate: { gte: selectedDate },
+        },
+    });
+
+    if (!slots.length) return [];
+
+    // 2️⃣ bookings
+    const bookings = await prisma.booking.findMany({
+        where: {
+            tutorCategory: {
+                tutorProfileId: tutorId,
+            },
+            sessionDate: selectedDate,
+            status: { in: ["PENDING", "CONFIRMED"] },
+        },
+    });
+
+    // 3️⃣ merge
+    const result = slots.map((slot) => {
+        const isBooked = bookings.some(
+            (b) => b.startTime < slot.endTime && b.endTime > slot.startTime,
+        );
+
+        return {
+            id: slot.id,
+            dayOfWeek: slot.dayOfWeek,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isBooked,
+        };
+    });
+
+    return result;
+};
+
 const updateAvailability = async (
     userId: string,
     availabilityId: string,
@@ -262,6 +315,7 @@ export const AvailabilityService = {
     createAvailability,
     getAvailability,
     getAvailibilityByTutorId,
+    getAvailabilityWithBookings,
     updateAvailability,
     deleteAvailability,
 };

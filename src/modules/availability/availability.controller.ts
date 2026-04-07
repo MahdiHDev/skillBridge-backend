@@ -73,6 +73,35 @@ const getAvailibilityByTutorId = async (
     }
 };
 
+const getAvailabilityWithBookings = async (req: Request, res: Response) => {
+    try {
+        const { tutorId } = req.params;
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({
+                success: false,
+                message: "Date is required",
+            });
+        }
+
+        const result = await AvailabilityService.getAvailabilityWithBookings(
+            tutorId as string,
+            date as string,
+        );
+
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (error: any) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Something went wrong",
+        });
+    }
+};
+
 const updateAvailability = async (
     req: Request,
     res: Response,
@@ -130,6 +159,7 @@ export const availabilityController = {
     createAvailability,
     getOwnAvailability,
     getAvailibilityByTutorId,
+    getAvailabilityWithBookings,
     updateAvailability,
     deleteAvailability,
 };

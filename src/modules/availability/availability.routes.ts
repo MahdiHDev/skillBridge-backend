@@ -24,6 +24,11 @@ availabilityRoutes.get(
     availabilityController.getAvailibilityByTutorId,
 );
 
+availabilityRoutes.get(
+    "/:tutorId/with-bookings",
+    availabilityController.getAvailabilityWithBookings,
+);
+
 availabilityRoutes.patch(
     "/update/:slotId",
     auth(UserRole.ADMIN, UserRole.TUTOR),
