@@ -102,6 +102,45 @@ const getAvailabilityWithBookings = async (req: Request, res: Response) => {
     }
 };
 
+const getAvailableDatesInMonth = async (req: Request, res: Response) => {
+    const { tutorProfileId } = req.params;
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+        return res.status(500).json({
+            success: false,
+            message: "year and month query params are required",
+        });
+    }
+
+    const parsedYear = parseInt(year as string);
+    const parsedMonth = parseInt(month as string);
+
+    if (
+        isNaN(parsedYear) ||
+        isNaN(parsedMonth) ||
+        parsedMonth < 1 ||
+        parsedMonth > 12
+    ) {
+        return res.status(500).json({
+            success: false,
+            message: "Invalid year or month",
+        });
+    }
+
+    const result = await AvailabilityService.getAvailableDatesInMonth(
+        tutorProfileId as string,
+        parsedYear,
+        parsedMonth,
+    );
+
+    res.status(200).json({
+        success: true,
+        message: "Available dates fetched successfully",
+        data: result,
+    });
+};
+
 const updateAvailability = async (
     req: Request,
     res: Response,
@@ -160,6 +199,7 @@ export const availabilityController = {
     getOwnAvailability,
     getAvailibilityByTutorId,
     getAvailabilityWithBookings,
+    getAvailableDatesInMonth,
     updateAvailability,
     deleteAvailability,
 };

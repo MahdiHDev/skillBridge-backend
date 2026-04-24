@@ -17,7 +17,11 @@ bookingRoutes.get(
     auth(UserRole.STUDENT, UserRole.TUTOR, UserRole.ADMIN),
     bookingController.mySessions,
 );
-bookingRoutes.get("/upcoming", bookingController.upcomingSession);
+bookingRoutes.get(
+    "/upcoming",
+    auth(UserRole.STUDENT, UserRole.ADMIN, UserRole.TUTOR),
+    bookingController.upcomingSession,
+);
 
 bookingRoutes.get(
     "/teaching",

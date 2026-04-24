@@ -29,6 +29,11 @@ availabilityRoutes.get(
     availabilityController.getAvailabilityWithBookings,
 );
 
+availabilityRoutes.get(
+    "/:tutorProfileId/available-dates",
+    availabilityController.getAvailableDatesInMonth,
+);
+
 availabilityRoutes.patch(
     "/update/:slotId",
     auth(UserRole.ADMIN, UserRole.TUTOR),

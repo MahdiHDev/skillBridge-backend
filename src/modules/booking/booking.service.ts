@@ -47,7 +47,7 @@ const createBooking = async (
         throw new Error("Session date is required");
     }
 
-    const sessionDate = new Date(`${data.sessionDate}T00:00:00.000`);
+    const sessionDate = new Date(`${data.sessionDate}T00:00:00.000Z`);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -63,8 +63,8 @@ const createBooking = async (
         throw new Error("Invalid time format. Use HH:MM");
     }
 
-    const startTime = new Date(`1970-01-01T${data.startTime}:00`);
-    const endTime = new Date(`1970-01-01T${data.endTime}:00`);
+    const startTime = new Date(`1970-01-01T${data.startTime}:00Z`);
+    const endTime = new Date(`1970-01-01T${data.endTime}:00Z`);
 
     if (startTime >= endTime) {
         throw new Error("Start time must be before end time");
@@ -96,6 +96,7 @@ const createBooking = async (
             const dayOfWeek = await sessionDate
                 .toLocaleDateString("en-US", {
                     weekday: "short",
+                    timeZone: "UTC",
                 })
                 .toUpperCase();
 
@@ -193,26 +194,74 @@ const mySessions = async (studentId: string) => {
                     },
                 },
             },
+            review: true,
         },
     });
 };
 
-const upCommingSession = async () => {
+// const upCommingSession = async () => {
+//     const today = new Date();
+//     return await prisma.booking.findMany({
+//         where: {
+//             sessionDate: {
+//                 gte: today,
+//             },
+//             status: "CONFIRMED",
+//         },
+//         include: {
+//             tutorCategory: {
+//                 include: {
+//                     tutorProfile: true,
+//                     subject: true,
+//                 },
+//             },
+//         },
+//     });
+// };
+
+// service
+const upCommingSession = async (userId: string) => {
     const today = new Date();
+
+    // get the user's role to determine filter
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+    });
+
+    const where: any = {
+        sessionDate: { gte: today },
+        status: "CONFIRMED",
+    };
+
+    if (user?.role === "STUDENT") {
+        where.studentId = userId; // ✅ student sees their own bookings
+    } else if (user?.role === "TUTOR") {
+        // tutor sees bookings under their tutor profile
+        const tutorProfile = await prisma.tutorProfile.findUnique({
+            where: { userId },
+            select: { id: true },
+        });
+        where.tutorCategory = {
+            tutorProfileId: tutorProfile?.id,
+        };
+    }
+
     return await prisma.booking.findMany({
-        where: {
-            sessionDate: {
-                gte: today,
-            },
-            status: "CONFIRMED",
-        },
+        where,
         include: {
             tutorCategory: {
                 include: {
-                    tutorProfile: true,
+                    tutorProfile: {
+                        include: { user: true }, // ✅ include tutor name
+                    },
                     subject: true,
                 },
             },
+            student: true, // ✅ include student info for tutor view
+        },
+        orderBy: {
+            sessionDate: "asc", // ✅ nearest first
         },
     });
 };
@@ -276,6 +325,17 @@ const teachingSession = async (
             tutorCategory: {
                 include: {
                     subject: true,
+                    tutorProfile: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },

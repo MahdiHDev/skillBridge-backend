@@ -17,6 +17,7 @@ const createAvailability = async (
     data: CreateAvailabilityInput,
 ) => {
     const { startDate, endDate, slots } = data;
+    console.log("Received data:", data);
 
     if (!slots || slots.length === 0) {
         throw new Error("At least one slot is required");
@@ -66,8 +67,8 @@ const createAvailability = async (
             throw new Error("Invalid time format. Use HH:MM (24-hour format)");
         }
 
-        const startTime = new Date(`1970-01-01T${slot.startTime}:00`);
-        const endTime = new Date(`1970-01-01T${slot.endTime}:00`);
+        const startTime = new Date(`1970-01-01T${slot.startTime}:00Z`);
+        const endTime = new Date(`1970-01-01T${slot.endTime}:00Z`);
 
         if (startTime >= endTime) {
             throw new Error("Start time must be before end time");
@@ -192,6 +193,132 @@ const getAvailabilityWithBookings = async (tutorId: string, date: string) => {
     return result;
 };
 
+// const getAvailableDatesInMonth = async (
+//     tutorProfileId: string,
+//     year: number,
+//     month: number, // 1-indexed
+// ) => {
+//     const startOfMonth = new Date(year, month - 1, 1);
+//     const endOfMonth = new Date(year, month, 0); // last day of month
+
+//     const slots = await prisma.availabilitySlot.findMany({
+//         where: {
+//             tutorProfileId,
+//             isActive: true,
+//             startDate: { lte: endOfMonth },
+//             endDate: { gte: startOfMonth },
+//         },
+//     });
+
+//     const availableDates = new Set<string>();
+
+//     for (
+//         let d = new Date(startOfMonth);
+//         d <= endOfMonth;
+//         d.setDate(d.getDate() + 1)
+//     ) {
+//         const dayName = d
+//             .toLocaleDateString("en-US", { weekday: "short" })
+//             .toUpperCase(); // e.g. "WED"
+
+//         const matchesSlot = slots.some(
+//             (s) =>
+//                 s.dayOfWeek === dayName && d >= s.startDate && d <= s.endDate,
+//         );
+
+//         if (matchesSlot) {
+//             availableDates.add(new Date(d).toISOString().split("T")[0]!); // store as "YYYY-MM-DD"
+//         }
+//     }
+//     console.log(availableDates);
+
+//     return Array.from(availableDates);
+// };
+
+const getAvailableDatesInMonth = async (
+    tutorProfileId: string,
+    year: number,
+    month: number,
+) => {
+    // Month range (UTC)
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+    // ✅ Current date (UTC - start of today)
+    const now = new Date();
+    const todayUTC = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+
+    // Fetch slots
+    const slots = await prisma.availabilitySlot.findMany({
+        where: {
+            tutorProfileId,
+            isActive: true,
+            startDate: { lte: endOfMonth },
+            endDate: { gte: startOfMonth },
+        },
+    });
+
+    // Fetch bookings
+    const bookings = await prisma.booking.findMany({
+        where: {
+            tutorCategory: { tutorProfileId },
+            status: { in: ["PENDING", "CONFIRMED"] },
+            sessionDate: { gte: startOfMonth, lte: endOfMonth },
+        },
+        select: { sessionDate: true, startTime: true, endTime: true },
+    });
+
+    const availableDates = new Set<string>();
+
+    for (
+        let d = new Date(startOfMonth);
+        d <= endOfMonth;
+        d.setUTCDate(d.getUTCDate() + 1)
+    ) {
+        // ✅ ❌ Skip past dates
+        if (d < todayUTC) continue;
+
+        const dayName = d
+            .toLocaleDateString("en-US", {
+                weekday: "short",
+                timeZone: "UTC",
+            })
+            .toUpperCase();
+
+        const dateStr = d.toISOString().split("T")[0]!;
+
+        // Filter slots for this day
+        const slotsForDay = slots.filter(
+            (s) =>
+                s.dayOfWeek === dayName && d >= s.startDate && d <= s.endDate,
+        );
+
+        if (slotsForDay.length === 0) continue;
+
+        // Filter bookings for this day
+        const bookingsForDay = bookings.filter((b) => {
+            return b.sessionDate.toISOString().split("T")[0] === dateStr;
+        });
+
+        // Check if at least one slot is available
+        const hasAvailableSlot = slotsForDay.some((slot) => {
+            const isBooked = bookingsForDay.some(
+                (b) =>
+                    b.startTime <= slot.startTime && b.endTime >= slot.endTime,
+            );
+            return !isBooked;
+        });
+
+        if (hasAvailableSlot) {
+            availableDates.add(d.toISOString());
+        }
+    }
+
+    return Array.from(availableDates);
+};
+
 const updateAvailability = async (
     userId: string,
     availabilityId: string,
@@ -258,11 +385,11 @@ const updateAvailability = async (
     }
 
     const startTime = data.startTime
-        ? new Date(`1970-01-01T${data.startTime}:00`)
+        ? new Date(`1970-01-01T${data.startTime}:00Z`)
         : existingSlot.startTime;
 
     const endTime = data.endTime
-        ? new Date(`1970-01-01T${data.endTime}:00`)
+        ? new Date(`1970-01-01T${data.endTime}:00Z`)
         : existingSlot.endTime;
 
     if (startTime >= endTime) {
@@ -316,6 +443,7 @@ export const AvailabilityService = {
     getAvailability,
     getAvailibilityByTutorId,
     getAvailabilityWithBookings,
+    getAvailableDatesInMonth,
     updateAvailability,
     deleteAvailability,
 };

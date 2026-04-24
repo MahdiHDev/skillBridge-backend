@@ -31,23 +31,30 @@ const getAllUsers = async ({
     }
 
     const users = await prisma.user.findMany({
+        take: limit,
+        skip,
         where: {
             AND: andConditions,
         },
-        take: limit,
-        skip,
         orderBy: {
             [sortBy]: sortOrder,
         },
     });
 
-    const totalUsers = await users.length; // Get the total count of users matching the search criteria
+    const total = await prisma.user.count({
+        where: {
+            AND: andConditions,
+        },
+    });
 
     return {
-        users,
-        total: totalUsers,
-        page,
-        limit,
+        data: users,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
     };
 };
 

@@ -260,8 +260,6 @@ const approveTutorProfile = async (req: Request, res: Response) => {
             adminId.id,
         );
 
-        console.log(updatedProfile.status);
-
         let subject = "";
         let html = "";
 

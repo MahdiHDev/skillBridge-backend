@@ -169,6 +169,10 @@ const getAllTutors = async ({
         andConditions.push({
             status: "APPROVED",
             isVerified: true,
+            tutorCategories: {
+                // ✅ must have at least one category
+                some: {},
+            },
         });
     }
 
@@ -365,7 +369,17 @@ const getTutorProfileById = async (id: string) => {
                             name: true,
                         },
                     },
+                    booking: {
+                        select: {
+                            tutorCategory: {
+                                select: {
+                                    subject: { select: { name: true } }, // ✅ brings in subject name
+                                },
+                            },
+                        },
+                    },
                 },
+
                 orderBy: {
                     createdAt: "desc",
                 },

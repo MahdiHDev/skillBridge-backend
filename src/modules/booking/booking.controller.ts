@@ -55,16 +55,35 @@ const mySessions = async (req: Request, res: Response, next: NextFunction) => {
     }
 };
 
+// const upcomingSession = async (
+//     req: Request,
+//     res: Response,
+//     next: NextFunction,
+// ) => {
+//     try {
+//         const result = await BookingService.upCommingSession();
+//         res.status(200).json({
+//             success: true,
+//             message: "Upcoming Sessions are retrived successfully",
+//             data: result,
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
+
+// controller
 const upcomingSession = async (
     req: Request,
     res: Response,
     next: NextFunction,
 ) => {
     try {
-        const result = await BookingService.upCommingSession();
+        const userId = req.user?.id; // ✅ get from auth middleware
+        const result = await BookingService.upCommingSession(userId as string);
         res.status(200).json({
             success: true,
-            message: "Upcoming Sessions are retrived successfully",
+            message: "Upcoming Sessions are retrieved successfully",
             data: result,
         });
     } catch (error) {

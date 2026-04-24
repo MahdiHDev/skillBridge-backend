@@ -89,8 +89,91 @@ const getMyReviews = async (
     }
 };
 
+// const deleteReview = async (
+//     req: Request,
+//     res: Response,
+//     next: NextFunction,
+// ) => {
+//     try {
+//         const user = req.user;
+//         if (!user) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "Unauthorized",
+//             });
+//         }
+
+//         const { reviewId } = req.params;
+//         if (!reviewId) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Review ID is required",
+//             });
+//         }
+
+//         // ✅ ADMIN/TUTOR can pass userId in body, STUDENT uses their own id
+//         const userId =
+//             user.role === "ADMIN" || user.role === "TUTOR"
+//                 ? ((req.query.userId as string) ?? user.id)
+//                 : user.id;
+
+//         await reviewService.deleteReview(
+//             reviewId as string,
+//             user.role,
+//             userId,
+//             req.query.targetStudentId as string,
+//         );
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Review deleted successfully",
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
+
+const deleteReview = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+        }
+
+        const { reviewId } = req.params;
+        if (!reviewId) {
+            return res.status(400).json({
+                success: false,
+                message: "Review ID is required",
+            });
+        }
+
+        // ✅ Always use the authenticated user's own ID — never trust query params for identity
+        await reviewService.deleteReview(
+            reviewId as string,
+            user.role,
+            user.id, // 👈 always from token
+            req.query.targetStudentId as string | undefined,
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Review deleted successfully",
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 export const reviewController = {
     createReview,
     getReviewsByTutorProfileId,
     getMyReviews,
+    deleteReview,
 };
